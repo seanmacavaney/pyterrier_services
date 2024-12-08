@@ -6,7 +6,7 @@ import pyterrier as pt
 from . import http_error_retry, paginated_search, multi_query
 
 class SemanticScholar:
-    """Represents the Semantic Scholar search API."""
+    """Represents a reference to the Semantic Scholar search API."""
     API_BASE_URL = 'https://api.semanticscholar.org/graph/v1'
 
     def retriever(self,
@@ -103,3 +103,7 @@ class SemanticScholarRetriever(pt.Transformer):
             verbose=self.verbose,
             verbose_desc='SemanticScholar.retriever',
         )(inp)
+
+    def fuse_rank_cutoff(self, k: int) -> Optional['SemanticScholarRetriever']:
+        if k < self.num_results:
+            return SemanticScholarRetriever(self.service, num_results=k, fields=self.fields, verbose=self.verbose)

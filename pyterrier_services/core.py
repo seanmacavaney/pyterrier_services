@@ -37,5 +37,15 @@ def multi_query(fn, verbose=True, verbose_desc='retrieving'):
             query_res = fn(query.query)
             query_res = query_res.assign(**{k: v for k, v in query._asdict().items() if k not in query_res.columns})
             res.append(query_res)
-        return pd.concat(res, ignore_index=True)
+
+        df = pd.concat(res, ignore_index=True)
+
+        desired_order = ["qid", "query", "docno", "score", "rank"]
+
+        # Add any remaining columns not in the desired order
+        remaining_columns = [col for col in df.columns if col not in desired_order]
+        new_order = desired_order + remaining_columns
+
+        # Reorder the dataframe
+        return df[new_order]
     return wrapped
