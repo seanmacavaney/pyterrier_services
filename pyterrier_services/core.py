@@ -5,12 +5,14 @@ import pandas as pd
 
 def http_error_retry(fn, retries=3):
     def wrapped(*args, **kwargs):
+        ex = None
         for i in range(retries):
             try:
                 return fn(*args, **kwargs)
             except requests.exceptions.HTTPError as e:
-                pass
-        raise e
+                ex = e
+        if ex is not None:
+            raise ex
     return wrapped
 
 
