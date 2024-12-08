@@ -30,5 +30,5 @@ version = {attr = "pyterrier_services.__version__"}
 dependencies = {file = ["requirements.txt"]}
 
 [project.urls]
-Repository = "https://github.com/seanmacavaney/pyterrier_services"
-"Bug Tracker" = "https://github.com/seanmacavaney/pyterrier_services/issues"
+Repository = "https://github.com/seanmacavaney/pyterrier-services"
+"Bug Tracker" = "https://github.com/seanmacavaney/pyterrier-services/issues"

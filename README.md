@@ -1,4 +1,4 @@
-# pyterrier_services
+# pyterrier-services
 
 PyTerrier components for online retrieval services.
 
