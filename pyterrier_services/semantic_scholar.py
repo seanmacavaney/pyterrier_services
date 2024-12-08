@@ -1,3 +1,4 @@
+from typing import List, Optional, Union, Tuple
 from functools import partial
 import pandas as pd
 import requests
@@ -5,33 +6,43 @@ import pyterrier as pt
 from . import http_error_retry, paginated_search, multi_query
 
 class SemanticScholar:
+    """Represents the Semantic Scholar search API."""
     API_BASE_URL = 'https://api.semanticscholar.org/graph/v1'
-    def __init__(self, verbose=True):
-        self.verbose = verbose
 
-    def retriever(self, num_results=100, fields=['title', 'abstract'], verbose=None):
-        return SemanticScholar.Retriever(self, num_results=num_results, fields=fields, verbose=verbose)
+    def retriever(self,
+        *,
+        num_results: int = 100,
+        fields: List[str] = ['title', 'abstract'],
+        verbose: bool = True
+    ) -> pt.Transformer:
+        """Returns a :class:`~pyterrier.Transformer` that retrieves articles from Semantic Scholar.
 
-    class Retriever(pt.Transformer):
-        def __init__(self, service, num_results=100, fields=['title', 'abstract'], verbose=None):
-            self.service = service
-            self.num_results = num_results
-            self.fields = fields
-            self.verbose = verbose if verbose is not None else service.verbose 
+        Args:
+            num_results: The number of results to retrieve. Defaults to 100.
+            fields: The fields to include in the retrieved results. Defaults to ['title', 'abstract'].
+            verbose: Whether to log the progress. Defaults to True.
+        """
+        return SemanticScholarRetriever(self, num_results=num_results, fields=fields, verbose=verbose)
 
-        def transform(self, inp):
-            return multi_query(
-                paginated_search(
-                    http_error_retry(
-                        partial(self.service.search, fields=self.fields)
-                    ),
-                    num_results=self.num_results,
-                ),
-                verbose=self.verbose,
-                verbose_desc='SemanticScholar.retriever',
-            )(inp)
+    def search(self,
+        query: str,
+        *,
+        offset: int = 0,
+        limit: int = 100,
+        fields: List[str] = ['title', 'abstract'],
+        return_next: bool = False,
+        return_total: bool = False
+    ) -> Union[pd.DataFrame, Tuple[pd.DataFrame, int], Tuple[pd.DataFrame, int, int]]:
+        """Searches for papers on Semantic Scholar with the provided query.
 
-    def search(self, query, offset=0, limit=100, fields=['title', 'abstract'], return_next=False, return_total=False):
+        Args:
+            query: The search query.
+            offset: The offset of the first result to retrieve. Defaults to 0.
+            limit: The maximum number of results to retrieve. Defaults to 100.
+            fields: The fields to include in the retrieved results. Defaults to ['title', 'abstract'].
+            return_next: Whether to return the next query URL. Defaults to False.
+            return_total: Whether to return the total number of results. Defaults to False.
+        """
         params = {
             'query': query,
             'offset': offset,
@@ -58,3 +69,37 @@ class SemanticScholar:
         if len(res) == 1:
             return res[0]
         return tuple(res)
+
+
+class SemanticScholarRetriever(pt.Transformer):
+    """A :class:`~pyterrier.Transformer` retriever that queries the Semantic Scholar search API."""
+    def __init__(self,
+        service: Optional[SemanticScholar] = None,
+        *,
+        num_results: int = 100,
+        fields: List[str] = ['title', 'abstract'],
+        verbose: bool = True
+    ):
+        """
+        Args:
+            service: The Semantic Scholar service. Defaults to a new instance of :class:`~pyterrier_services.SemanticScholar`.
+            num_results: The number of results to retrieve per query. Defaults to 100.
+            fields: The fields to include in the retrieved results. Defaults to ['title', 'abstract'].
+            verbose: Whether to log the progress. Defaults to True.
+        """
+        self.service = service or SemanticScholar()
+        self.num_results = num_results
+        self.fields = fields
+        self.verbose = verbose
+
+    def transform(self, inp: pd.DataFrame) -> pd.DataFrame:
+        return multi_query(
+            paginated_search(
+                http_error_retry(
+                    partial(self.service.search, fields=self.fields)
+                ),
+                num_results=self.num_results,
+            ),
+            verbose=self.verbose,
+            verbose_desc='SemanticScholar.retriever',
+        )(inp)
