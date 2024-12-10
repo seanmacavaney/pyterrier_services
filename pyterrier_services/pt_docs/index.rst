@@ -13,4 +13,5 @@ transformers for various API services.
 .. toctree::
    :maxdepth: 1
 
+   pinecone
    semantic-scholar
