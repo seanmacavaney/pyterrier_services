@@ -24,7 +24,7 @@ Example:
 	#   1  pyterrier  90b8a1adae2761e48c87fdeb68a595dc11161970     -4     4  QPPTK@TIREx: Simplified Query Performance Pred...  We describe our software submission to the ECI...
 
 
-.. autoclass:: pyterrier_services.SemanticScholar
+.. autoclass:: pyterrier_services.SemanticScholarApi
    :members:
 
 .. autoclass:: pyterrier_services.SemanticScholarRetriever

@@ -5,7 +5,7 @@ import requests
 import pyterrier as pt
 from . import http_error_retry, paginated_search, multi_query
 
-class SemanticScholar:
+class SemanticScholarApi:
     """Represents a reference to the Semantic Scholar search API."""
     API_BASE_URL = 'https://api.semanticscholar.org/graph/v1'
 
@@ -22,7 +22,7 @@ class SemanticScholar:
             fields: The fields to include in the retrieved results. Defaults to ['title', 'abstract'].
             verbose: Whether to log the progress. Defaults to True.
         """
-        return SemanticScholarRetriever(self, num_results=num_results, fields=fields, verbose=verbose)
+        return SemanticScholarRetriever(api=self, num_results=num_results, fields=fields, verbose=verbose)
 
     def search(self,
         query: str,
@@ -74,20 +74,20 @@ class SemanticScholar:
 class SemanticScholarRetriever(pt.Transformer):
     """A :class:`~pyterrier.Transformer` retriever that queries the Semantic Scholar search API."""
     def __init__(self,
-        service: Optional[SemanticScholar] = None,
         *,
+        api: Optional[SemanticScholarApi] = None,
         num_results: int = 100,
         fields: List[str] = ['title', 'abstract'],
         verbose: bool = True
     ):
         """
         Args:
-            service: The Semantic Scholar service. Defaults to a new instance of :class:`~pyterrier_services.SemanticScholar`.
+            api: The Semantic Scholar api service. Defaults to a new instance of :class:`~pyterrier_services.SemanticScholarApi`.
             num_results: The number of results to retrieve per query. Defaults to 100.
             fields: The fields to include in the retrieved results. Defaults to ['title', 'abstract'].
             verbose: Whether to log the progress. Defaults to True.
         """
-        self.service = service or SemanticScholar()
+        self.api = api or SemanticScholarApi()
         self.num_results = num_results
         self.fields = fields
         self.verbose = verbose
@@ -96,14 +96,14 @@ class SemanticScholarRetriever(pt.Transformer):
         return multi_query(
             paginated_search(
                 http_error_retry(
-                    partial(self.service.search, fields=self.fields)
+                    partial(self.api.search, fields=self.fields)
                 ),
                 num_results=self.num_results,
             ),
             verbose=self.verbose,
-            verbose_desc='SemanticScholar.retriever',
+            verbose_desc='SemanticScholarRetriever',
         )(inp)
 
     def fuse_rank_cutoff(self, k: int) -> Optional['SemanticScholarRetriever']:
         if k < self.num_results:
-            return SemanticScholarRetriever(self.service, num_results=k, fields=self.fields, verbose=self.verbose)
+            return SemanticScholarRetriever(api=self.api, num_results=k, fields=self.fields, verbose=self.verbose)
