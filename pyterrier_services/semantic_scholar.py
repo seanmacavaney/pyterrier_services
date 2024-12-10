@@ -49,7 +49,7 @@ class SemanticScholarApi:
             'fields': ','.join(fields),
             'limit': max(min(limit, 100), 1),
         }
-        http_res = requests.get(SemanticScholar.API_BASE_URL + '/paper/search', params=params)
+        http_res = requests.get(SemanticScholarApi.API_BASE_URL + '/paper/search', params=params)
         http_res.raise_for_status()
         http_res = http_res.json()
 
