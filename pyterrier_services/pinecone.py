@@ -10,9 +10,7 @@ class PineconeApi:
     This class wraps :class:`pinecone.Pinecone`.
     """
 
-    def __init__(self,
-        api_key: Optional[str] = None
-    ):
+    def __init__(self, api_key: Optional[str] = None):
         """
         Args:
             api_key (str, optional): The Pinecone API key. Defaults to the value from ``PINECONE_API_KEY``.
@@ -23,16 +21,20 @@ class PineconeApi:
         self._embed = self.pc.inference.embed
         self._rerank = self.pc.inference.rerank
 
-    def sparse_model(self,
-        model_name: str = 'pinecone-sparse-english-v0',
-    ) -> 'PineconeSparseModel':
-        """Creates a :class:`PineconeSparseModel` instance."""
+    def sparse_model(self, model_name: str = 'pinecone-sparse-english-v0') -> 'PineconeSparseModel':
+        """Creates a :class:`PineconeSparseModel` instance.
+
+        Args:
+            model_name (str): The name of the model. See the `list of supported models <https://docs.pinecone.io/models>`__.
+        """
         return PineconeSparseModel(model_name, api=self)
 
-    def reranker(self,
-        model_name: str = 'pinecone-rerank-v0'
-    ) -> 'PineconeReranker':
-        """Creates a :class:`PineconeReranker` instance."""
+    def reranker(self, model_name: str = 'pinecone-rerank-v0') -> 'PineconeReranker':
+        """Creates a :class:`PineconeReranker` instance.
+
+        Args:
+            model_name (str): The name of the model. See the `list of supported models <https://docs.pinecone.io/models>`__.
+        """
         return PineconeReranker(model_name, api=self)
 
 
@@ -45,7 +47,7 @@ class PineconeSparseModel(pt.Transformer):
     ):
         """
         Args:
-            model_name (str): The name of the model.
+            model_name (str): The name of the model. See the `list of supported models <https://docs.pinecone.io/models>`__.
             api (PineconeApi, optional): The Pinecone API object. Defaults to a new instance.
         """
         self.model_name = model_name
@@ -54,12 +56,10 @@ class PineconeSparseModel(pt.Transformer):
     def transform(self, inp: pd.DataFrame) -> pd.DataFrame:
         """Encodes either queries or documents using this model (based on input columns)"""
         with pta.validate.any(inp) as v:
-            v.query_frame(extra_columns=['query'], mode='query_encoder')
-            v.document_frame(extra_columns=['text'], mode='doc_encoder')
-        if v.mode == 'query_encoder':
-            return self.query_encoder()(inp)
-        if v.mode == 'doc_encoder':
-            return self.doc_encoder()(inp)
+            v.query_frame(extra_columns=['query'], mode=self.query_encoder)
+            v.document_frame(extra_columns=['text'], mode=self.doc_encoder)
+            v.result_frame_frame(extra_columns=['query', 'text'], mode=self.scorer)
+        return v.mode()(inp)
 
     def query_encoder(self) -> 'PineconeSparseEncoder':
         """Creates a transformer that encodes queries using this model."""
@@ -68,6 +68,10 @@ class PineconeSparseModel(pt.Transformer):
     def doc_encoder(self) -> 'PineconeSparseEncoder':
         """Creates a transformer that encodes documents using this model."""
         return PineconeSparseEncoder(self, input_type='passage')
+
+    def scorer(self) -> 'PineconeSparseScorer':
+        """Creates a transformer that scores (re-ranks) results using this model."""
+        return PineconeSparseScorer(self)
 
     def __repr__(self):
         return f"PineconeSparseModel({self.model_name!r})"
@@ -101,8 +105,32 @@ class PineconeSparseEncoder(pt.Transformer):
         return f"PineconeSparseEncoder({self.sparse_model!r}, input_type={self.input_type!r})"
 
 
+def _sparse_dot(qt, dt):
+    return sum(qt[t] * dt[t] for t in qt.keys() & dt.keys())
+
+
+class PineconeSparseScorer(pt.Transformer):
+    def __init__(self, sparse_model: PineconeSparseModel):
+        self.sparse_model = sparse_model
+
+    def transform(self, inp: pd.DataFrame) -> pd.DataFrame:
+        pta.validate.document_frame(inp, extra_columns=['query', 'text'])
+        query_toks = self.sparse_model.query_encoder(inp[['qid', 'query']])['query_toks']
+        doc_toks = self.sparse_model.doc_encoder(inp[['docno', 'text']])['toks']
+
+        scores = [_sparse_dot(qt, dt) for qt, dt in zip(query_toks, doc_toks)]
+
+        res = inp.assign(score=scores).sort_values('score', ascending=False).reset_index(drop=True)
+        pt.model.add_ranks(res)
+        return res
+
+    def __repr__(self):
+        return f"PineconeSparseScorer({self.sparse_model!r})"
+
+
 class PineconeReranker(pt.Transformer):
     """A PyTerrier transformer that provies access to a Pinecone reranker model."""
+
     def __init__(self,
         model_name: str = 'pinecone-rerank-v0',
         *,
@@ -110,7 +138,7 @@ class PineconeReranker(pt.Transformer):
     ):
         """
         Args:
-            model_name (str): The name of the model.
+            model_name (str): The name of the model. See the `list of supported models <https://docs.pinecone.io/models>`__.
             api (PineconeApi, optional): The Pinecone API object. Defaults to a new instance.
         """
         self.model_name = model_name

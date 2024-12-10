@@ -13,7 +13,7 @@ and reranking models. ``pyterrier-services`` provides access to these APIs throu
 	to the constructor of :class:`~pyterrier_services.PineconeApi`.
 
 API Documentation
------------------
+--------------------------------
 
 .. autoclass:: pyterrier_services.PineconeApi
    :members:
