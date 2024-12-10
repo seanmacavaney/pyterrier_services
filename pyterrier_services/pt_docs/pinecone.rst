@@ -1,9 +1,8 @@
 Pinecone
 ==================================================
 
-`Pinecone <https://www.pinecone.io/>`__ provides various proprietary embedding models for search.
-
-``pyterrier-services`` provides access to the Pinecone API through
+`Pinecone <https://docs.pinecone.io/models/overview>`__ provides a Hosted Inference API to various embedding
+and reranking models. ``pyterrier-services`` provides access to these APIs through
 :class:`~pyterrier_services.PineconeApi`.
 
 .. Note::
@@ -13,8 +12,14 @@ Pinecone
 	provide your API key through the environment variable ``PINECONE_API_KEY`` (preferred), or pass it
 	to the constructor of :class:`~pyterrier_services.PineconeApi`.
 
+API Documentation
+-----------------
+
 .. autoclass:: pyterrier_services.PineconeApi
    :members:
 
 .. autoclass:: pyterrier_services.PineconeSparseModel
+   :members:
+
+.. autoclass:: pyterrier_services.PineconeReranker
    :members:

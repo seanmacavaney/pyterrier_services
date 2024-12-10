@@ -1,4 +1,5 @@
 from typing import Optional, Literal
+import numpy as np
 import pandas as pd
 import pyterrier as pt
 import pyterrier_alpha as pta
@@ -19,13 +20,20 @@ class PineconeApi:
         from pinecone import Pinecone
         self.api_key = api_key
         self.pc = Pinecone(api_key=self.api_key)
-        self.embed = self.pc.inference.embed
+        self._embed = self.pc.inference.embed
+        self._rerank = self.pc.inference.rerank
 
     def sparse_model(self,
         model_name: str = 'pinecone-sparse-english-v0',
     ) -> 'PineconeSparseModel':
-        """Creates a PineconeSparseModel instance."""
+        """Creates a :class:`PineconeSparseModel` instance."""
         return PineconeSparseModel(model_name, api=self)
+
+    def reranker(self,
+        model_name: str = 'pinecone-rerank-v0'
+    ) -> 'PineconeReranker':
+        """Creates a :class:`PineconeReranker` instance."""
+        return PineconeReranker(model_name, api=self)
 
 
 class PineconeSparseModel(pt.Transformer):
@@ -80,7 +88,7 @@ class PineconeSparseEncoder(pt.Transformer):
             text = inp['query'].tolist()
             toks_field = 'query_toks'
 
-        embeddings = self.sparse_model.api.embed(
+        embeddings = self.sparse_model.api._embed(
             model=self.sparse_model.model_name,
             inputs=text,
             parameters={"input_type": self.input_type, "return_tokens": True}
@@ -91,3 +99,45 @@ class PineconeSparseEncoder(pt.Transformer):
 
     def __repr__(self):
         return f"PineconeSparseEncoder({self.sparse_model!r}, input_type={self.input_type!r})"
+
+
+class PineconeReranker(pt.Transformer):
+    """A PyTerrier transformer that provies access to a Pinecone reranker model."""
+    def __init__(self,
+        model_name: str = 'pinecone-rerank-v0',
+        *,
+        api: Optional[PineconeApi] = None,
+    ):
+        """
+        Args:
+            model_name (str): The name of the model.
+            api (PineconeApi, optional): The Pinecone API object. Defaults to a new instance.
+        """
+        self.model_name = model_name
+        self.api = api or PineconeApi()
+
+    @pta.transform.by_query()
+    def transform(self, inp: pd.DataFrame) -> pd.DataFrame:
+        inp = inp.reset_index(drop=True)
+        pta.validate.result_frame(inp, extra_columns=['query', 'text'])
+        query = inp['query'].iloc[0]
+        documents = inp['text'].tolist()
+        results = self.api._rerank(
+            model=self.model_name,
+            query=query,
+            documents=documents,
+            return_documents=False,
+            parameters= {
+                "truncate": "END"
+            }
+        )
+        res = inp.assign(score=pd.Series(
+            [r.score for r in results.data],
+            [r.index for r in results.data],
+        ))
+        res = res.sort_values('score', ascending=False).reset_index(drop=True)
+        res = res.assign(rank=np.arange(len(res)))
+        return res
+
+    def __repr__(self):
+        return f"PineconeReranker({self.model_name!r})"
