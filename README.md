@@ -31,3 +31,8 @@ Example:
 #   1  pyterrier  e57c05d3eb9c2d32332dc539d32e78f2b1fb05a6    -10    10  University of Glasgow Terrier Team and UFMG at...  For TREC 2020, we explore different re-ranking...
 #   1  pyterrier  81ec8a40deb82470438d978b013a0f6094ec8843    -11    11  IR From Bag-of-words to BERT and Beyond throug...  The task of adhoc search is undergoing a renai...
 ```
+
+## Pinecone
+
+[Pinecone](https://docs.pinecone.io/models/overview) provides a Hosted Inference API to various embedding
+and reranking models. ``pyterrier-services`` provides access to dense, learned sparse, and re-ranking APIs through `pyterrier_services.PineconeApi`.
