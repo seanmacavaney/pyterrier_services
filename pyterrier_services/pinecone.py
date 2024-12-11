@@ -227,7 +227,7 @@ class PineconeDenseEncoder(pt.Transformer):
         if self.input_type == 'passage':
             pta.validate.document_frame(inp, extra_columns=['text'])
             text = inp['text'].tolist()
-            vecs_field = 'dov_vec'
+            vecs_field = 'doc_vec'
         elif self.input_type == 'query':
             pta.validate.query_frame(inp, extra_columns=['query'])
             text = inp['query'].tolist()
